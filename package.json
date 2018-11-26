@@ -1,0 +1,16 @@
+{
+  "name": "fpe",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "big.js": "^5.2.2",
+    "node-fpe": "^1.0.0",
+    "paralleljs": "^0.2.1"
+  }
+}
