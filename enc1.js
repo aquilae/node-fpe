@@ -1,12 +1,14 @@
 const feistelRounds = require('./helpers/feistelRounds')
 
-module.exports = num => {
+module.exports = (num, domainStart, domainEnd, numRounds = 4) => {
   const key = 'key'
 
-  do {
-    const buf = feistelRounds(num, key, 4)
-    num = buf.readUInt32LE()
-  } while (num > 899999)
+  const domainSize = domainEnd - domainStart
 
-  return num
+  do {
+    const buf = feistelRounds(num, key, numRounds)
+    num = buf.readUInt32LE()
+  } while (num > domainSize)
+
+  return domainStart + num
 }
