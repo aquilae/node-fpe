@@ -37,7 +37,9 @@ if (cluster.isMaster) {
   let processing
   let nextProcessingId = 1
 
-  cluster.on('message', (worker, message, handle) => {
+  cluster.on('message', (...args) => {
+    const message = args.filter(x => typeof x === 'string')[0]
+
     try {
       const [id, result] = JSON.parse(message)
       if (processing && processing.id === id && !processing.done) {
