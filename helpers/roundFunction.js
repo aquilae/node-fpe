@@ -1,8 +1,8 @@
 const crypto = require('crypto')
 const padBuffer = require('./padBuffer')
 
-module.exports = (key, data, len) => {
-  const cipher = crypto.createCipher('aes-256-cbc', key)
+module.exports = (key, data, len, roundFunc) => {
+  const cipher = crypto.createCipher(roundFunc, key)
   cipher.setAutoPadding(false)
   const input = padBuffer(data)
   const out1 = cipher.update(input)
