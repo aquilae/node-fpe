@@ -38,26 +38,31 @@ if (cluster.isMaster) {
   let nextProcessingId = 1
 
   cluster.on('message', (worker, message, handle) => {
-    const [id, result] = JSON.parse(message)
-    if (processing && processing.id === id && !processing.done) {
-      try {
-        Object.assign(processing.data, result)
-        processing.progress = Object.keys(processing.data).length
-        if (processing.max - processing.min + 1 === processing.progress) {
-          const pairs = Object.keys(processing.data).map(x => [x, processing.data[x]])
-          pairs.sort((a, b) => a[0] - b[0])
-          const buf = Buffer.alloc(pairs.length * 8)
-          pairs.forEach(([n, e], i) => {
-            buf.writeInt32BE(n, i * 8)
-            buf.writeInt32BE(e, (i * 8) + 4)
-          })
-          fs.writeFileSync('data.bin', buf)
+    try {
+      const [id, result] = JSON.parse(message)
+      if (processing && processing.id === id && !processing.done) {
+        try {
+          Object.assign(processing.data, result)
+          processing.progress = Object.keys(processing.data).length
+          if (processing.max - processing.min + 1 === processing.progress) {
+            const pairs = Object.keys(processing.data).map(x => [x, processing.data[x]])
+            pairs.sort((a, b) => a[0] - b[0])
+            const buf = Buffer.alloc(pairs.length * 8)
+            pairs.forEach(([n, e], i) => {
+              buf.writeInt32BE(n, i * 8)
+              buf.writeInt32BE(e, (i * 8) + 4)
+            })
+            fs.writeFileSync('data.bin', buf)
+            processing.done = true
+          }
+        } catch (exc) {
           processing.done = true
+          processing.errors.push(`Fatal:\r\n${exc.message}\r\n\r\n${exc}\r\n\r\n${exc.stack}`)
         }
-      } catch (exc) {
-        processing.done = true
-        processing.errors.push(`Fatal:\r\n${exc.message}\r\n\r\n${exc}\r\n\r\n${exc.stack}`)
       }
+    } catch (exc) {
+      console.error('FATAL:', exc.message, exc, exc.stack)
+      console.warn('message:', message)
     }
   })
 
