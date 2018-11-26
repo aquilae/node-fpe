@@ -26,29 +26,6 @@ if (cluster.isMaster) {
     return result
   }
 
-  const split2 = (array, maxCount) => {
-    let chunk
-    const result = []
-
-    for (let i = 0, j = 0, ii = array.length; i < ii; ++i) {
-      const item = array[i]
-
-      if (j === 0) {
-        chunk = []
-        result.push(chunk)
-        ++j
-      } else if (j === maxCount - 1) {
-        j = 0
-      } else {
-        ++j
-      }
-
-      chunk.push(item)
-    }
-
-    return result
-  }
-
   for (let i = 0; i < 16; ++i) {
     cluster.fork()
   }
@@ -93,9 +70,11 @@ if (cluster.isMaster) {
       workers.forEach((worker, i) => {
         const numbersOfThisWorker = numbersByWorker[i]
 
-        for (const chunk of split2(numbersOfThisWorker, 10)) {
-          worker.send(JSON.stringify([proc.id, proc.numRounds, proc.cipherFunc, chunk]))
-        }
+        const data = Buffer.alloc(numbersOfThisWorker.length * 4)
+        numbersOfThisWorker.forEach((n, i) => data.writeInt32BE(n, i * 4))
+        fs.writeFileSync(`${proc.id}.${worker.id}.bin`, data)
+
+        worker.send(JSON.stringify([proc.id, proc.numRounds, proc.cipherFunc]))
       })
     } catch (exc) {
       proc.done = true
@@ -226,14 +205,49 @@ if (cluster.isMaster) {
     })
     .listen(PORT || 34000)
 } else {
+  const fs = require('fs')
   const enc = require('./enc')
 
-  process.on('message', msg => {
-    const [id, numRounds, cipherFunc, numbers] = JSON.parse(msg)
-    const result = {}
-    for (const num of numbers) {
-      result[num] = enc(num, 100000, 999999, numRounds, cipherFunc)
+  const split2 = (array, maxCount) => {
+    let chunk
+    const result = []
+
+    for (let i = 0, j = 0, ii = array.length; i < ii; ++i) {
+      const item = array[i]
+
+      if (j === 0) {
+        chunk = []
+        result.push(chunk)
+        ++j
+      } else if (j === maxCount - 1) {
+        j = 0
+      } else {
+        ++j
+      }
+
+      chunk.push(item)
     }
-    process.send(JSON.stringify([id, result]))
+
+    return result
+  }
+
+  process.on('message', msg => {
+    const [id, numRounds, cipherFunc] = JSON.parse(msg)
+
+    const data = fs.readFileSync(`${id}.${cluster.worker.id}.bin`)
+    fs.unlinkSync(`${id}.${cluster.worker.id}.bin`)
+
+    const numbers = []
+    for (let i = 0, ii = data.length; i < ii; i += 4) {
+      numbers.push(data.readInt32BE(i))
+    }
+
+    for (const chunk of split2(numbers, 10)) {
+      const result = {}
+      for (const num of chunk) {
+        result[num] = enc(num, 100000, 999999, numRounds, cipherFunc)
+      }
+      process.send(JSON.stringify([id, result]))
+    }
   })
 }
